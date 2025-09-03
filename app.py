@@ -1,11 +1,35 @@
 from flask import Flask, request
-from db import stores
+from flask_jwt_extended import jwt_required, JWTManager, create_access_token, get_jwt
+from db import stores, registered_users as users
 import uuid
 
 app = Flask(__name__)
+jwt = JWTManager(app)
+app.config["JWT_SECRET_KEY"] = "123456789"
+
+
+
+@app.get("/login")
+def login():
+    json_body = request.get_json()
+    username = json_body["username"] # admin
+    password = json_body["password"] # admin@123
+
+    user = users.get(username, None) # {"username":"admin", "password":"admin@123"}
+
+    if not user or user["password"] != password:
+        return {"msg":"unauthorized user"}
+    
+    access_token = create_access_token(identity=username)
+    return {"access_token":access_token}        
+
 
 @app.get("/all_stores")
+@jwt_required()
 def all_stores():
+    jwt_body = get_jwt()
+    if jwt_body.get("sub") != "admin":
+        return {"msg":"not an admin"}
     return stores
 
 @app.post("/add_stores")
